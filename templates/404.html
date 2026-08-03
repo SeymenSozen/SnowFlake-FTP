@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 - Dosya Bulunamadı | SnowFlake FTP</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='404.css') }}">
+</head>
+<body>
+    <canvas id="snowCanvas"></canvas>
+
+    <div class="error-container">
+        <div class="glitch-wrapper">
+            <h1 class="glitch-text" data-text="404">404</h1>
+        </div>
+        
+        <p class="error-message">
+            Aradığınız dosya silinmiş veya paylaşıma kapatılmış olabilir.
+        </p>
+
+        <div class="action-box">
+            <a href="/" class="home-btn">ANA SAYFAYA DÖN</a>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='404.js') }}"></script>
+</body>
+</html>

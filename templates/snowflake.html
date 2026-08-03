@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>{% if session.get('username') %}SnowFlake FTP{% else %}Giriş Yap - SnowFlake FTP{% endif %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='snowflake.css') }}">
+</head>
+<body>
+    <canvas id="snowCanvas"></canvas>
+
+    <div id="toast-notification" class="toast-popup hidden">
+        <span id="toast-text">Bağlantı kopyalandı!</span>
+    </div>
+
+    {% if not session.get('username') %}
+    <div class="login-container {% if error %}shake-error{% endif %}" id="login-card">
+        <h2 style="text-align: center; color: #66fcf1; margin-top: 0; letter-spacing: 2px; font-weight: 400;">PROJECT SNOWFLAKE</h2>
+        
+        <form method="POST">
+            <div class="input-group">
+                <label>KULLANICI ADI</label>
+                <input type="text" name="username" class="{% if error %}input-error{% endif %}" required autocomplete="off" spellcheck="false">
+            </div>
+            <div class="input-group">
+                <label>ŞİFRE</label>
+                <input type="password" name="password" class="{% if error %}input-error{% endif %}" required>
+            </div>
+
+            {% if error %}
+            <div class="folder-error-text" id="login-error-msg" style="margin-top: 10px; margin-bottom: 10px; font-size: 11px;">
+                {{ error }}
+            </div>
+            {% endif %}
+
+            <button type="submit" class="login-btn {% if error %}btn-error{% endif %}" id="login-submit-btn">SİSTEME GİRİŞ YAP</button>
+        </form>
+    </div>
+
+    {% else %}
+    <header class="top-bar">
+        <div class="user-profile">
+            <img src="{{ url_for('static', filename=user_avatar) }}" 
+                 onerror="this.onerror=null; this.src='/static/img/default.png';" 
+                 alt="PP" class="avatar-img" id="nav-avatar">
+            <div class="user-details">
+                <span class="username">{{ session['username']|upper }}</span>
+                <span class="role-badge">{{ session.get('role', 'user') }}</span>
+            </div>
+        </div>
+        <div class="nav-actions">
+            <button class="icon-btn" id="open-settings-btn" title="Ayarlar">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#66fcf1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                </svg>
+            </button>
+        </div>
+    </header>
+
+    {% if user_info.get('is_default_password') %}
+    <div class="warning-banner" id="default-pass-banner">
+        <span class="warning-icon">⚠️</span>
+        <div class="warning-text">
+            <strong>GÜVENLİK UYARISI:</strong> Henüz varsayılan şifrenizi kullanıyorsunuz! Lütfen hesabınızı güvenceye almak için şifrenizi değiştirin.
+        </div>
+        <button class="banner-action-btn" onclick="openSettingsModal()">AYARLARA GİT</button>
+    </div>
+    {% endif %}
+
+    <h1 style="z-index: 10; font-weight: 500; letter-spacing: 2px; margin-top: 20px;">SnowFlake FTP</h1>
+
+    <div class="disk-container">
+        <div class="disk-header">
+            <span>DİSK DURUMU: <strong>{{ disk.used }} / {{ disk.total }} DOLU</strong></span>
+            <span>BOŞ ALAN: <strong>{{ disk.free }}</strong></span>
+        </div>
+        <div class="disk-bar-bg"><div class="disk-bar-fill" style="width: {{ disk.percent }}%;"></div></div>
+    </div>
+
+    <input type="hidden" id="current-path" value="{{ current_path }}">
+    <input type="hidden" id="server-base-url" value="{{ server_base_url }}">
+
+    <div class="grid-container" style="z-index: 10;">
+
+        <div class="box upload-box item-card" id="drop-zone">
+            <button class="menu-trigger-btn" onclick="toggleCardMenu(event, 'upload-zone')">⋮</button>
+
+            <div class="card-menu-popup hidden" id="menu-upload-zone" style="width: 210px;">
+                <div class="menu-title">YENİ KLASÖR OLUŞTUR</div>
+                <div class="input-group" style="margin-bottom: 10px;">
+                    <input type="text" id="new-folder-input" placeholder="Klasör Adı..." style="padding: 8px; font-size: 12px;">
+                </div>
+                <div class="menu-option" style="margin-bottom: 8px;">
+                    <span class="static-label">Kullanıcı Erişimine Aç</span>
+                    <label class="switch">
+                        <input type="checkbox" id="new-folder-public" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div id="folder-error-msg" class="folder-error-text hidden">Bu isimde bir klasör zaten var!</div>
+                <button type="button" class="action-btn" id="create-folder-btn" style="width: 100%; font-size: 11px; padding: 6px;">Oluştur</button>
+            </div>
+
+            <div class="card-inner-link" onclick="document.getElementById('file-input').click()">
+                <div class="spinner" id="loading-spinner"></div>
+                <div class="plus-sign" id="upload-icon">+</div>
+                <div class="upload-text" id="upload-status">Sürükle veya Seç</div>
+                <div class="progress-container" id="p-container"><div class="progress-bar" id="p-bar"></div></div>
+                <input type="file" id="file-input" style="display: none;">
+            </div>
+        </div>
+
+        {% if parent_path != None %}
+        <a href="/?path={{ parent_path }}" class="box video-box" style="background-color: rgba(69, 243, 255, 0.05);">
+            <div class="video-icon">🔙</div>
+            <div class="video-name" style="color: #66fcf1;">Bir Üst Klasör</div>
+        </a>
+        {% endif %}
+
+        {% for klasor in klasorler %}
+        <div class="box video-box item-card">
+            <button class="menu-trigger-btn" onclick="toggleCardMenu(event, '{{ klasor.rel_path }}')">⋮</button>
+            
+            <div class="card-menu-popup hidden" id="menu-{{ klasor.rel_path }}">
+                <div class="menu-title">KLASÖR AYARLARI</div>
+                <div class="menu-option">
+                    <span class="static-label">Kullanıcı Erişimine Aç</span>
+                    <label class="switch">
+                        <input type="checkbox" {% if klasor.public_access %}checked{% endif %} 
+                               onchange="handlePermToggle('{{ klasor.rel_path }}', 'public_access', this.checked)">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <a href="/?path={{ klasor.rel_path }}" class="card-inner-link">
+                <div class="video-icon">📁</div>
+                <div class="video-name">{{ klasor.name }}</div>
+            </a>
+        </div>
+        {% endfor %}
+
+        {% for dosya in dosyalar %}
+        <div class="box video-box item-card">
+            <button class="menu-trigger-btn" onclick="toggleCardMenu(event, '{{ dosya.rel_path }}')">⋮</button>
+            
+            <div class="card-menu-popup hidden" id="menu-{{ dosya.rel_path }}" style="width: 210px;">
+                <div class="menu-title">DOSYA AYARLARI</div>
+                
+                <div class="menu-option" style="margin-bottom: 10px;">
+                    <span class="static-label">Kullanıcı Erişimine Aç</span>
+                    <label class="switch">
+                        <input type="checkbox" {% if dosya.public_access %}checked{% endif %} 
+                               onchange="handlePermToggle('{{ dosya.rel_path }}', 'public_access', this.checked)">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div class="menu-option">
+                    <span class="static-label">Paylaşıma Aç</span>
+                    
+                    <div class="share-actions-group">
+                        <button type="button" class="copy-icon-btn" 
+                                id="copy-btn-{{ loop.index }}"
+                                title="Paylaşım Linkini Kopyala"
+                                onclick="copyShareLink('{{ dosya.rel_path }}', {{ 'true' if dosya.public else 'false' }}, 'menu-{{ dosya.rel_path }}', this)">
+                            <svg class="copy-svg-icon" viewBox="0 0 24 24" fill="none" stroke="#66fcf1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg>
+                        </button>
+
+                        <label class="switch" title="Paylaşıma Aç/Kapat">
+                            <input type="checkbox" id="public-switch-{{ loop.index }}" {% if dosya.public %}checked{% endif %} 
+                                   onchange="handlePermToggle('{{ dosya.rel_path }}', 'public', this.checked, 'copy-btn-{{ loop.index }}')">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div id="share-error-{{ dosya.rel_path }}" class="folder-error-text hidden" style="margin-top: 8px; margin-bottom: 0;">
+                    Paylaşıma açmadan linki kopyalayamazsın!
+                </div>
+            </div>
+
+            <a href="/indir?path={{ dosya.rel_path }}" class="card-inner-link">
+                <div class="video-icon">🎞️</div>
+                <div class="video-name">{{ dosya.name }}</div>
+                <div class="video-size">{{ dosya.size }}</div>
+            </a>
+        </div>
+        {% endfor %}
+
+    </div>
+
+    <div id="settings-modal" class="modal-backdrop hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>HESAP AYARLARI</h3>
+                <button class="close-btn" id="close-settings-btn">&times;</button>
+            </div>
+            
+            <div class="modal-section">
+                <label>PROFİL FOTOĞRAFI GÜNCELLE</label>
+                <div class="avatar-upload-wrapper">
+                    <img src="{{ url_for('static', filename=user_avatar) }}" 
+                         onerror="this.onerror=null; this.src='/static/img/default.png';" 
+                         class="preview-avatar" id="modal-avatar-preview">
+                    <input type="file" id="pp-file-input" accept="image/png, image/jpeg" style="display: none;">
+                    
+                    <div class="pp-btn-group">
+                        <button type="button" class="action-btn" onclick="document.getElementById('pp-file-input').click()">Resim Seç</button>
+                        <a href="/logout" class="modal-logout-btn">Çıkış Yap</a>
+                    </div>
+                </div>
+            </div>
+
+            <hr class="modal-divider">
+
+            <div class="modal-section">
+                <label>ŞİFRE DEĞİŞTİR</label>
+                <div class="input-group">
+                    <input type="password" id="old-pass-input" placeholder="Mevcut Şifre">
+                </div>
+                <div class="input-group">
+                    <input type="password" id="new-pass-input" placeholder="Yeni Şifre">
+                </div>
+                <button type="button" class="login-btn" id="save-pass-btn">ŞİFREYİ KAYDET</button>
+            </div>
+
+            <div id="modal-msg" class="error-msg" style="margin-top: 15px; display: none;"></div>
+        </div>
+    </div>
+
+    {% endif %}
+
+    <script src="{{ url_for('static', filename='snowflake.js') }}"></script>
+</body>
+</html>

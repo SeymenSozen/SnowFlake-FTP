@@ -1,0 +1,12 @@
+venv
+.env
+cryptography
+keys
+database
+__pycache__/
+*.tmp
+uploads/
+chunks/
+tmp
+static/img/pp
+.todo
