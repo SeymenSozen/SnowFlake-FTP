@@ -67,6 +67,74 @@ function copyToClipboard(text) {
     }
 }
 
+window.isDragging = false;
+
+function handleDragStart(event, relPath) {
+    window.isDragging = true;
+    event.dataTransfer.setData('text/plain', relPath);
+    document.querySelectorAll('.card-menu-popup').forEach(el => el.classList.add('hidden'));
+}
+
+document.addEventListener('dragend', () => {
+    setTimeout(() => { window.isDragging = false; }, 100);
+});
+
+function handleDragOver(event) {
+    event.preventDefault();
+}
+
+async function handleDrop(event, targetFolderRel) {
+    event.preventDefault();
+    window.isDragging = false;
+    const sourceRel = event.dataTransfer.getData('text/plain');
+
+    if (!sourceRel || sourceRel === targetFolderRel) return;
+
+    try {
+        const res = await fetch("/api/move-item", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ source_rel: sourceRel, target_folder_rel: targetFolderRel })
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+            showToast("Öğe başarıyla taşındı.");
+            setTimeout(() => { location.reload(); }, 600);
+        } else {
+            alert(data.message || "Taşıma başarısız!");
+        }
+    } catch (err) {
+        alert("Bağlantı hatası oluştu!");
+    }
+}
+
+async function handleDropToBin(event) {
+    event.preventDefault();
+    window.isDragging = false;
+    const sourceRel = event.dataTransfer.getData('text/plain');
+
+    if (!sourceRel) return;
+
+    try {
+        const res = await fetch("/api/move-item", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ source_rel: sourceRel, target_folder_rel: "bin" })
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+            showToast("Öğe çöp kutusuna taşındı.");
+            setTimeout(() => { location.reload(); }, 600);
+        } else {
+            alert(data.message || "Çöp kutusuna taşınamadı!");
+        }
+    } catch (err) {
+        alert("Bağlantı hatası oluştu!");
+    }
+}
+
 function toggleCardMenu(event, relPath) {
     event.stopPropagation();
     event.preventDefault();
@@ -118,6 +186,64 @@ function copyShareLink(relPath, isPublic, menuId, btnElement) {
     }).catch(err => {
         showToast("Link kopyalanamadı!");
     });
+}
+
+function deleteItem(relPath, itemName) {
+    const existingModal = document.getElementById('custom-confirm-modal');
+    if (existingModal) existingModal.remove();
+
+    const backdrop = document.createElement('div');
+    backdrop.id = 'custom-confirm-modal';
+    backdrop.className = 'custom-confirm-backdrop';
+
+    backdrop.innerHTML = `
+        <div class="custom-confirm-card">
+            <h4>SİSTEM UYARISI</h4>
+            <p>"<strong>${itemName}</strong>" adlı öğeyi çöp kutusuna taşımak istediğinize emin misiniz?</p>
+            <div class="custom-confirm-btns">
+                <button type="button" class="confirm-no-btn" id="confirm-cancel">VAZGEÇ</button>
+                <button type="button" class="confirm-yes-btn" id="confirm-ok">EMİNİM</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(backdrop);
+
+    document.getElementById('confirm-cancel').onclick = () => {
+        backdrop.remove();
+    };
+
+    document.getElementById('confirm-ok').onclick = async () => {
+        backdrop.remove();
+        try {
+            const res = await fetch("/api/delete-item", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ rel_path: relPath })
+            });
+            const data = await res.json();
+
+            if (res.ok) {
+                showToast("Öğe çöp kutusuna taşındı.");
+                setTimeout(() => { location.reload(); }, 1000);
+            } else {
+                alert(data.message || "Silinemedi!");
+            }
+        } catch (err) {
+            alert("Bağlantı hatası oluştu!");
+        }
+    };
+}
+
+function triggerBinLockEffect(element) {
+    const cardBox = element.closest('.box');
+    if (cardBox) {
+        cardBox.classList.add('shake-error');
+        showToast("Çöp kutusundaki dosyalar doğrudan açılamaz!");
+        setTimeout(() => {
+            cardBox.classList.remove('shake-error');
+        }, 400);
+    }
 }
 
 const createFolderBtn = document.getElementById('create-folder-btn');

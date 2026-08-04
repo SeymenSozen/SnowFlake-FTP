@@ -16,3 +16,15 @@ Project SnowFlake FTP ile ilgili tüm sürüm değişiklikleri bu dosyada kronol
   * Siberpunk tarzı glitch efektli özel `404 Not Found` sayfası tasarlandı.
   * Hatalı girişlerde ve yetkisiz kopyalamalarda kırmızı shake (sallanma) animasyonları devreye alındı.
   * Sandviç menü (3 nokta) üzerinden dosya/klasör izinleri ve paylaşım linki kopyalama özellikleri eklendi.
+
+## [1.2.0] - 2026-08-04
+
+### ✨ Eklenenler ve Yenilikler
+* **Sürükle-Bırak Desteği:** Dosya ve klasörleri fareyle tutup doğrudan başka bir klasörün veya en alttaki **Geri Dönüştür** kutusunun üzerine bırakarak taşıma özelliği eklendi.
+* **Akıllı Çakışma Önleme (Collision Handling):** Aynı isimde dosya/klasör yüklenirken, taşınırken veya çöp kutusuna atılırken üzerine yazma engellendi; otomatik olarak `_1`, `_2` şeklinde numaralandırma sistemi getirildi.
+* **Geri Dönüştür (Çöp Kutusu) Entegrasyonu:** Admin ana dizininde ham `bin` klasörü gizlenerek yerine şık, temaya uygun özel bir **Geri Dönüştür** kartı yerleştirildi.
+* **Çöp Kutusu Güvenliği:** Çöp kutusu içerisindeki dosyalara doğrudan tıklanması engellendi; tıklandığında kart kırmızı renkte titreşerek uyarı vermesi sağlandı.
+
+### 🎨 Arayüz ve Tasarım İyileştirmeleri
+* **Hizalama Düzenlemeleri:** Kart içi ayarlar menüsünde bulunan başlık satırı ve çöp kutusu ikonu aynı satıra (en sağa) hizalandı.
+* **Siberpunk Onay Mekanizması:** Klasik tarayıcı `confirm` pencereleri kaldırılarak projeye özel cyberpunk tarzı onay kartları entegre edildi.

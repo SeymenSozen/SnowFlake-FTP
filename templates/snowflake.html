@@ -86,8 +86,10 @@
             <button class="menu-trigger-btn" onclick="toggleCardMenu(event, 'upload-zone')">⋮</button>
 
             <div class="card-menu-popup hidden" id="menu-upload-zone" style="width: 210px;">
-                <div class="menu-title">YENİ KLASÖR OLUŞTUR</div>
-                <div class="input-group" style="margin-bottom: 10px;">
+                <div class="menu-header-row">
+                    <div class="menu-title">YENİ KLASÖR OLUŞTUR</div>
+                </div>
+                <div class="input-group" style="margin-top: 8px; margin-bottom: 10px;">
                     <input type="text" id="new-folder-input" placeholder="Klasör Adı..." style="padding: 8px; font-size: 12px;">
                 </div>
                 <div class="menu-option" style="margin-bottom: 8px;">
@@ -118,12 +120,27 @@
         {% endif %}
 
         {% for klasor in klasorler %}
-        <div class="box video-box item-card">
+        <div class="box video-box item-card" 
+             draggable="true" 
+             ondragstart="handleDragStart(event, '{{ klasor.rel_path }}')"
+             ondragover="handleDragOver(event)"
+             ondrop="handleDrop(event, '{{ klasor.rel_path }}')">
             <button class="menu-trigger-btn" onclick="toggleCardMenu(event, '{{ klasor.rel_path }}')">⋮</button>
             
-            <div class="card-menu-popup hidden" id="menu-{{ klasor.rel_path }}">
-                <div class="menu-title">KLASÖR AYARLARI</div>
-                <div class="menu-option">
+            <div class="card-menu-popup hidden" id="menu-{{ klasor.rel_path }}" style="width: 210px;">
+                <div class="menu-header-row">
+                    <div class="menu-title">KLASÖR AYARLARI</div>
+                    {% if not current_path.startswith('bin') %}
+                    <button type="button" class="delete-icon-btn" title="Çöp Kutusuna Taşı" onclick="deleteItem('{{ klasor.rel_path }}', '{{ klasor.name }}')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#ff4a4a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                    </button>
+                    {% endif %}
+                </div>
+
+                <div class="menu-option" style="margin-top: 12px;">
                     <span class="static-label">Kullanıcı Erişimine Aç</span>
                     <label class="switch">
                         <input type="checkbox" {% if klasor.public_access %}checked{% endif %} 
@@ -133,21 +150,40 @@
                 </div>
             </div>
 
-            <a href="/?path={{ klasor.rel_path }}" class="card-inner-link">
+            {% if current_path.startswith('bin') %}
+            <div class="card-inner-link" onclick="triggerBinLockEffect(this)" style="cursor: pointer;">
                 <div class="video-icon">📁</div>
-                <div class="video-name">{{ klasor.name }}</div>
+                <div class="folder-name">{{ klasor.name }}</div>
+            </div>
+            {% else %}
+            <a href="/?path={{ klasor.rel_path }}" class="card-inner-link" onclick="if(window.isDragging) { event.preventDefault(); }">
+                <div class="video-icon">📁</div>
+                <div class="folder-name">{{ klasor.name }}</div>
             </a>
+            {% endif %}
         </div>
         {% endfor %}
 
         {% for dosya in dosyalar %}
-        <div class="box video-box item-card">
+        <div class="box video-box item-card" 
+             draggable="true" 
+             ondragstart="handleDragStart(event, '{{ dosya.rel_path }}')">
             <button class="menu-trigger-btn" onclick="toggleCardMenu(event, '{{ dosya.rel_path }}')">⋮</button>
             
             <div class="card-menu-popup hidden" id="menu-{{ dosya.rel_path }}" style="width: 210px;">
-                <div class="menu-title">DOSYA AYARLARI</div>
+                <div class="menu-header-row">
+                    <div class="menu-title">DOSYA AYARLARI</div>
+                    {% if not current_path.startswith('bin') %}
+                    <button type="button" class="delete-icon-btn" title="Çöp Kutusuna Taşı" onclick="deleteItem('{{ dosya.rel_path }}', '{{ dosya.name }}')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#ff4a4a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                    </button>
+                    {% endif %}
+                </div>
                 
-                <div class="menu-option" style="margin-bottom: 10px;">
+                <div class="menu-option" style="margin-top: 12px; margin-bottom: 10px;">
                     <span class="static-label">Kullanıcı Erişimine Aç</span>
                     <label class="switch">
                         <input type="checkbox" {% if dosya.public_access %}checked{% endif %} 
@@ -183,13 +219,34 @@
                 </div>
             </div>
 
-            <a href="/indir?path={{ dosya.rel_path }}" class="card-inner-link">
+            {% if current_path.startswith('bin') %}
+            <div class="card-inner-link" onclick="triggerBinLockEffect(this)" style="cursor: pointer;">
+                <div class="video-icon">🎞️</div>
+                <div class="video-name">{{ dosya.name }}</div>
+                <div class="video-size">{{ dosya.size }}</div>
+            </div>
+            {% else %}
+            <a href="/indir?path={{ dosya.rel_path }}" class="card-inner-link" onclick="if(window.isDragging) { event.preventDefault(); }">
                 <div class="video-icon">🎞️</div>
                 <div class="video-name">{{ dosya.name }}</div>
                 <div class="video-size">{{ dosya.size }}</div>
             </a>
+            {% endif %}
         </div>
         {% endfor %}
+
+        {% if current_path == "" and session.get('role') == 'admin' %}
+        <div class="box video-box" 
+             style="border-color: rgba(255, 74, 74, 0.4); background-color: rgba(255, 74, 74, 0.03); cursor: pointer;"
+             ondragover="handleDragOver(event)"
+             ondrop="handleDropToBin(event)">
+            <a href="/?path=bin" class="card-inner-link" onclick="if(window.isDragging) { event.preventDefault(); }">
+                <div class="video-icon">🗑️</div>
+                <div class="video-name" style="color: #ff4a4a; font-weight: bold;">Geri Dönüştür</div>
+                <div class="video-size">Çöp Kutusu</div>
+            </a>
+        </div>
+        {% endif %}
 
     </div>
 

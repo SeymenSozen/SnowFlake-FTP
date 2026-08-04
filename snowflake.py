@@ -92,6 +92,12 @@ def load_users():
     except Exception:
         return {}
 
+def save_users(users_data):
+    if not os.path.exists(DATABASE_DIR):
+        os.makedirs(DATABASE_DIR, exist_ok=True)
+    with open(USERS_FILE, "w", encoding="utf-8") as f:
+        json.dump(users_data, f, indent=2, ensure_ascii=False)
+
 def load_permissions():
     if not os.path.exists(PERMISSIONS_FILE):
         return {}
@@ -109,7 +115,8 @@ def save_permissions(perm_data):
 
 def get_item_permission(rel_path):
     perms = load_permissions()
-    default_perm = {"owner": "luffy", "public_access": False, "public": False}
+    current_user = session.get("username", "user")
+    default_perm = {"owner": current_user, "public_access": False, "public": False}
     perm = perms.get(rel_path, default_perm)
     if "public" not in perm:
         perm["public"] = False
@@ -118,6 +125,7 @@ def get_item_permission(rel_path):
 def can_user_access_item(username, user_role, rel_path):
     if user_role == "admin":
         return True
+    
     perm = get_item_permission(rel_path)
     if perm.get("public_access", False):
         return True
@@ -174,6 +182,11 @@ def index():
         for item in os.listdir(target_dir):
             if item.startswith("."):
                 continue
+            
+            # ANA DİZİNDEYSE (rel_path == "") 'bin' klasörünü tamamen gizle
+            if item == "bin" and rel_path == "":
+                continue
+
             item_path = os.path.join(target_dir, item)
             item_rel = os.path.relpath(item_path, FTP_DIR)
 
@@ -187,7 +200,7 @@ def index():
                     "name": item, 
                     "rel_path": item_rel, 
                     "public_access": perm_info.get("public_access", False),
-                    "owner": perm_info.get("owner", "luffy")
+                    "owner": perm_info.get("owner", current_username)
                 })
             else:
                 size_bytes = os.path.getsize(item_path)
@@ -198,7 +211,7 @@ def index():
                     "size": size_mb,
                     "public_access": perm_info.get("public_access", False),
                     "public": perm_info.get("public", False),
-                    "owner": perm_info.get("owner", "luffy")
+                    "owner": perm_info.get("owner", current_username)
                 })
     except Exception as e:
         log_error(f"Dizin listeleme hatası: {e}")
@@ -231,6 +244,16 @@ def index():
         server_base_url=server_base_url
     )
 
+def get_unique_path(dest_dir, filename):
+    base, ext = os.path.splitext(filename)
+    counter = 1
+    destination_path = os.path.join(dest_dir, filename)
+    while os.path.exists(destination_path):
+        filename = f"{base}_{counter}{ext}"
+        destination_path = os.path.join(dest_dir, filename)
+        counter += 1
+    return destination_path, filename
+
 @app.route("/share/<path:rel_path>")
 def share_link(rel_path):
     file_path = os.path.abspath(os.path.join(FTP_DIR, rel_path))
@@ -258,13 +281,15 @@ def create_folder():
     if not folder_name:
         return jsonify({"status": "error", "message": "Klasör adı boş olamaz."}), 400
 
-    target_dir = os.path.abspath(os.path.join(FTP_DIR, current_path, folder_name))
-    if not target_dir.startswith(FTP_DIR) or os.path.exists(target_dir):
-        return jsonify({"status": "error", "message": "Bu isimde bir klasör veya dosya zaten var!"}), 400
+    target_dir = os.path.abspath(os.path.join(FTP_DIR, current_path))
+    destination_path, unique_folder_name = get_unique_path(target_dir, folder_name)
+
+    if not destination_path.startswith(FTP_DIR):
+        return jsonify({"status": "error", "message": "Geçersiz dizin!"}), 400
 
     try:
-        os.makedirs(target_dir, exist_ok=True)
-        rel_path = os.path.relpath(target_dir, FTP_DIR)
+        os.makedirs(destination_path, exist_ok=True)
+        rel_path = os.path.relpath(destination_path, FTP_DIR)
         perms = load_permissions()
         perms[rel_path] = {"owner": session["username"], "public_access": public_access, "public": False}
         save_permissions(perms)
@@ -296,6 +321,92 @@ def toggle_permission():
     save_permissions(perms)
     return jsonify({"status": "success"})
 
+@app.route("/api/delete-item", methods=["POST"])
+def delete_item():
+    if "username" not in session:
+        return jsonify({"status": "error", "message": "Oturum açın."}), 401
+
+    data = request.get_json() or {}
+    rel_path = data.get("rel_path", "").strip()
+
+    if not rel_path:
+        return jsonify({"status": "error", "message": "Geçersiz dosya/klasör."}), 400
+
+    target_path = os.path.abspath(os.path.join(FTP_DIR, rel_path))
+    if not target_path.startswith(FTP_DIR) or not os.path.exists(target_path):
+        return jsonify({"status": "error", "message": "Öğe bulunamadı."}), 404
+
+    if rel_path == "bin" or rel_path.startswith("bin" + os.sep):
+        return jsonify({"status": "error", "message": "Çöp kutusu dizini silinemez!"}), 403
+
+    try:
+        bin_dir = os.path.join(FTP_DIR, "bin")
+        os.makedirs(bin_dir, exist_ok=True)
+
+        item_name = os.path.basename(target_path)
+        destination_path, new_filename = get_unique_path(bin_dir, item_name)
+
+        shutil.move(target_path, destination_path)
+
+        perms = load_permissions()
+        if rel_path in perms:
+            del perms[rel_path]
+            save_permissions(perms)
+
+        log_success(f"Öğe çöp kutusuna taşındı: {rel_path} -> bin/{new_filename}")
+        return jsonify({"status": "success", "message": "Öğe çöp kutusuna taşındı."})
+    except Exception as e:
+        log_error(f"Silme hatası: {e}")
+        return jsonify({"status": "error", "message": "Öğe taşınamadı."}), 500
+
+@app.route("/api/move-item", methods=["POST"])
+def move_item():
+    if "username" not in session:
+        return jsonify({"status": "error", "message": "Oturum açın."}), 401
+
+    data = request.get_json() or {}
+    source_rel = data.get("source_rel", "").strip()
+    target_folder_rel = data.get("target_folder_rel", "").strip() # Eğer çöp kutusuna atılıyorsa "bin" olacak
+
+    if not source_rel:
+        return jsonify({"status": "error", "message": "Geçersiz kaynak."}), 400
+
+    source_path = os.path.abspath(os.path.join(FTP_DIR, source_rel))
+    if not source_path.startswith(FTP_DIR) or not os.path.exists(source_path):
+        return jsonify({"status": "error", "message": "Kaynak öğe bulunamadı."}), 404
+
+    # Hedef klasör belirleme
+    if target_folder_rel == "bin":
+        dest_dir = os.path.abspath(os.path.join(FTP_DIR, "bin"))
+    else:
+        dest_dir = os.path.abspath(os.path.join(FTP_DIR, target_folder_rel))
+
+    if not dest_dir.startswith(FTP_DIR) or not os.path.exists(dest_dir):
+        return jsonify({"status": "error", "message": "Hedef dizin bulunamadı."}), 404
+
+    try:
+        item_name = os.path.basename(source_path)
+        destination_path, new_filename = get_unique_path(dest_dir, item_name)
+
+        # Kendi içine taşınmaya çalışılırsa engelle
+        if source_path == destination_path or destination_path.startswith(source_path + os.sep):
+            return jsonify({"status": "error", "message": "Bir klasör kendi içine taşınamaz!"}), 400
+
+        shutil.move(source_path, destination_path)
+
+        # İzinleri güncelle
+        perms = load_permissions()
+        new_rel_path = os.path.relpath(destination_path, FTP_DIR)
+        if source_rel in perms:
+            perms[new_rel_path] = perms.pop(source_rel)
+            save_permissions(perms)
+
+        log_success(f"Öğe taşındı: {source_rel} -> {new_rel_path}")
+        return jsonify({"status": "success", "message": "Öğe başarıyla taşındı."})
+    except Exception as e:
+        log_error(f"Taşıma hatası: {e}")
+        return jsonify({"status": "error", "message": "Öğe taşınamadı."}), 500
+
 @app.route("/api/change-password", methods=["POST"])
 def change_password():
     if "username" not in session:
@@ -306,13 +417,18 @@ def change_password():
     new_password = data.get("new_password", "").strip()
 
     users = load_users()
-    user_data = users.get(session["username"])
+    username = session["username"]
+    user_data = users.get(username)
 
     if not verify_password(user_data["password_hash"], old_password):
         return jsonify({"status": "error", "message": "Mevcut şifreniz hatalı."}), 400
 
+    default_plain = user_data.get("default_password_plain", "")
+    is_still_default = (new_password == default_plain)
+
     user_data["password_hash"] = hash_password(new_password)
-    user_data["is_default_password"] = False
+    user_data["is_default_password"] = is_still_default
+    
     save_users(users)
     return jsonify({"status": "success", "message": "Şifre güncellendi!"})
 
@@ -334,7 +450,8 @@ def upload_avatar():
         if os.path.exists(old_file):
             os.remove(old_file)
 
-    file.save(os.path.join(PP_DIR, f"{session['username']}{ext}"))
+    unique_avatar_path, unique_avatar_name = get_unique_path(PP_DIR, f"{session['username']}{ext}")
+    file.save(unique_avatar_path)
     return jsonify({"status": "success"})
 
 @app.route("/yukle", methods=["POST"])
@@ -356,18 +473,28 @@ def yukle():
         upload_dir = FTP_DIR
 
     os.makedirs(upload_dir, exist_ok=True)
-    file_path = os.path.join(upload_dir, filename)
 
     mode = "wb" if chunk_index == 0 else "ab"
+    
+    if chunk_index == 0:
+        file_path, unique_filename = get_unique_path(upload_dir, filename)
+        session['active_upload_filename'] = unique_filename
+    else:
+        active_name = session.get('active_upload_filename', filename)
+        file_path = os.path.join(upload_dir, active_name)
+
     with open(file_path, mode) as f:
         f.write(file_chunk.read())
 
     if chunk_index + 1 == total_chunks:
-        rel_path = os.path.relpath(file_path, FTP_DIR)
+        final_filename = session.get('active_upload_filename', filename)
+        final_file_path = os.path.join(upload_dir, final_filename)
+        rel_path = os.path.relpath(final_file_path, FTP_DIR)
+        
         perms = load_permissions()
         perms[rel_path] = {"owner": session["username"], "public_access": False, "public": False}
         save_permissions(perms)
-        log_success(f"Dosya yüklendi: {filename}")
+        log_success(f"Dosya yüklendi: {final_filename}")
 
     return jsonify({"status": "success"})
 

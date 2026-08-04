@@ -1,5 +1,4 @@
 venv
-.env
 cryptography
 keys
 database
@@ -10,3 +9,4 @@ chunks/
 tmp
 static/img/pp
 .todo
+schemas/privite.yml
