@@ -73,6 +73,10 @@ function handleDragStart(event, relPath) {
     window.isDragging = true;
     event.dataTransfer.setData('text/plain', relPath);
     document.querySelectorAll('.card-menu-popup').forEach(el => el.classList.add('hidden'));
+    document.querySelectorAll('.item-card, .box').forEach(card => {
+        card.classList.remove('menu-active');
+        card.style.zIndex = '';
+    });
 }
 
 document.addEventListener('dragend', () => {
@@ -138,14 +142,23 @@ async function handleDropToBin(event) {
 function toggleCardMenu(event, relPath) {
     event.stopPropagation();
     event.preventDefault();
-    
-    document.querySelectorAll('.card-menu-popup').forEach(el => {
-        if (el.id !== `menu-${relPath}`) el.classList.add('hidden');
+
+    const targetMenu = document.getElementById(`menu-${relPath}`);
+    const parentCard = event.currentTarget.closest('.item-card') || event.currentTarget.closest('.box');
+    const isAlreadyOpen = targetMenu && !targetMenu.classList.contains('hidden');
+
+    document.querySelectorAll('.card-menu-popup').forEach(el => el.classList.add('hidden'));
+    document.querySelectorAll('.item-card, .box').forEach(card => {
+        card.classList.remove('menu-active');
+        card.style.zIndex = '';
     });
 
-    const menu = document.getElementById(`menu-${relPath}`);
-    if (menu) {
-        menu.classList.toggle('hidden');
+    if (targetMenu && !isAlreadyOpen) {
+        targetMenu.classList.remove('hidden');
+        if (parentCard) {
+            parentCard.classList.add('menu-active');
+            parentCard.style.zIndex = '99999';
+        }
     }
 }
 
@@ -182,6 +195,10 @@ function emptyBin() {
 document.addEventListener('click', (e) => {
     if (!e.target.closest('.card-menu-popup') && !e.target.closest('.menu-trigger-btn') && !e.target.closest('.bin-menu-container')) {
         document.querySelectorAll('.card-menu-popup').forEach(el => el.classList.add('hidden'));
+        document.querySelectorAll('.item-card, .box').forEach(card => {
+            card.classList.remove('menu-active');
+            card.style.zIndex = '';
+        });
         const binMenu = document.getElementById('binDropdownMenu');
         if (binMenu) binMenu.classList.add('hidden');
     }
@@ -439,10 +456,7 @@ function handleFiles(files) {
         const panel = document.getElementById('uploads-panel');
         if (panel) panel.classList.remove('hidden');
 
-        // Dosyaları gerçek bir JavaScript dizisine çeviriyoruz
         const fileArray = Array.from(files);
-        
-        // Sırayla teker teker yükleyerek %0'da kalma ve çakışma sorunlarını önlüyoruz
         processUploadQueue(fileArray, 0);
     }
 }
@@ -459,7 +473,7 @@ function processUploadQueue(fileArray, currentIndex) {
 }
 
 function uploadSingleFile(file, onCompleteCallback) {
-    const chunkSize = 10 * 1024 * 1024; // 10MB chunk boyutu
+    const chunkSize = 10 * 1024 * 1024;
     const totalChunks = Math.ceil(file.size / chunkSize);
     let currentChunk = 0;
 
@@ -620,7 +634,6 @@ function handleUploadError(fileId, msg) {
     }
 }
 
-// Sürükle bırak olayları (Drop Zone)
 const dropZone = document.getElementById('drop-zone');
 if (dropZone) {
     ['dragenter', 'dragover'].forEach(eventName => { 

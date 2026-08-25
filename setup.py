@@ -22,6 +22,13 @@ try:
 except ImportError:
     def load_dotenv(**kwargs): pass
 
+try:
+    from cryptography.hazmat.primitives.asymmetric import rsa
+    from cryptography.hazmat.primitives import serialization
+    HAS_CRYPTOGRAPHY = True
+except ImportError:
+    HAS_CRYPTOGRAPHY = False
+
 DATABASE_DIR = os.path.abspath("database")
 KEYS_DIR = os.path.abspath("keys")
 PP_DIR = os.path.abspath("static/img/pp")
@@ -272,4 +279,4 @@ if __name__ == "__main__":
     setup_users()
     setup_permissions_scan()
 
-    print(f"\n{Fore.GREEN}[✓] Kurulum başarıyla tamamlandı, Luffy! Proje çalışmaya hazır.{Style.RESET_ALL}\n")
+    print(f"\n{Fore.GREEN}[✓] Kurulum başarıyla tamamlandı! Proje çalışmaya hazır.{Style.RESET_ALL}\n")

@@ -4,6 +4,14 @@ Project SnowFlake FTP ile ilgili tüm sürüm değişiklikleri bu dosyada kronol
 
 ---
 
+## [1.3.2] - 2026-08-25
+
+### 🛠️ Hata Düzeltmeleri ve İyileştirmeler
+* **Stacking Context & Katman Yönetimi (CSS/JS):** `backdrop-filter` ve `transform` kaynaklı yeni katman bağlamı (stacking context) sorunları `.item-card.menu-active` sınıfı ve `.item-card:has(...)` seçicisi ile `z-index: 99999 !important` seviyesine çekilerek menülerin kart arkasında kalması kesin olarak çözüldü.
+* **Dinamik Kart Odağı (JS):** `snowflake.js` içerisindeki `toggleCardMenu` ve global `click` dinleyicilerine aktif kart odak mekanizması entegre edildi; menü açıldığında ait olduğu kart DOM üzerinde en üst katmana taşınacak şekilde optimize edildi.
+* **`setup.py` Bağımlılık ve Anahtar Üretim Onarımı:** Eksik kalan `HAS_CRYPTOGRAPHY` bayrağı ve `cryptography` import denetimi düzeltildi; RSA anahtar üretim adımlarındaki `NameError` hatası giderildi.
+* **Ortam Değişkeni Dinamik Okuma:** `setup.py` başlangıcında `.env` dosyasındaki `FTP_DIR` dizininin varsayılan `tmp` yerine `/media/snowflake` olarak anlık ve doğru okunması garanti altına alındı.
+
 ## [1.3.1] - 2026-08-25
 
 ### 🛠️ Hata Düzeltmeleri ve İyileştirmeler
