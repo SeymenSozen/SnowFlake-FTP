@@ -103,3 +103,89 @@ input:checked + .slider:before { transform: translateX(16px); background-color: 
 .confirm-yes-btn:hover { background: #ff4a4a; color: #0b131a; box-shadow: 0 0 10px rgba(255, 74, 74, 0.5); }
 .confirm-no-btn { background: rgba(102, 252, 241, 0.05); border: 1px solid #66fcf1; color: #66fcf1; }
 .confirm-no-btn:hover { background: #66fcf1; color: #0b131a; }
+.uploads-panel {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 320px;
+    background: rgba(15, 23, 42, 0.95);
+    border: 1px solid rgba(102, 252, 241, 0.4);
+    border-radius: 12px;
+    box-shadow: 0 5px 25px rgba(0,0,0,0.6);
+    z-index: 9999;
+    backdrop-filter: blur(10px);
+    overflow: hidden;
+    font-family: inherit;
+    transition: all 0.3s ease;
+}
+.uploads-panel.hidden {
+    display: none !important;
+}
+.uploads-header {
+    background: rgba(31, 40, 51, 0.8);
+    padding: 10px 15px;
+    font-size: 11px;
+    font-weight: bold;
+    color: #66fcf1;
+    letter-spacing: 1px;
+    border-bottom: 1px solid rgba(102, 252, 241, 0.2);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.uploads-body {
+    max-height: 220px;
+    overflow-y: auto;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.upload-item {
+    background: rgba(11, 12, 16, 0.6);
+    border: 1px solid rgba(102, 252, 241, 0.15);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 11px;
+}
+.upload-item-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+    color: #fff;
+    gap: 5px;
+}
+.upload-filename {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex-grow: 1;
+}
+.upload-cancel-btn {
+    background: rgba(255, 74, 74, 0.15);
+    border: 1px solid #ff4a4a;
+    color: #ff4a4a;
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 9px;
+    cursor: pointer;
+    font-weight: bold;
+}
+.upload-cancel-btn:hover {
+    background: #ff4a4a;
+    color: #0b0c10;
+}
+.upload-progress-bg {
+    width: 100%;
+    height: 6px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 3px;
+    overflow: hidden;
+}
+.upload-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #45f3ff, #66fcf1);
+    width: 0%;
+    transition: width 0.1s linear;
+}

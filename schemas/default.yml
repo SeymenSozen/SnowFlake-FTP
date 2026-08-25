@@ -5,3 +5,6 @@ users:
   user:
     password: "user"
     role: "user"
+  user3:
+    password: "user3"
+    role: "editor"

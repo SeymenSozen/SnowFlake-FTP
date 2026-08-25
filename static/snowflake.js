@@ -149,9 +149,41 @@ function toggleCardMenu(event, relPath) {
     }
 }
 
+function toggleBinMenu(event) {
+    event.stopPropagation();
+    event.preventDefault();
+    const menu = document.getElementById('binDropdownMenu');
+    if (menu) {
+        menu.classList.toggle('hidden');
+    }
+}
+
+function emptyBin() {
+    if (!confirm("Çöp kutusundaki tüm öğeler kalıcı olarak silinecek. Emin misiniz?")) return;
+
+    fetch('/api/empty-bin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'success') {
+            showToast("Çöp kutusu boşaltıldı.");
+            setTimeout(() => { location.reload(); }, 800);
+        } else {
+            alert(data.message || "Bir hata oluştu.");
+        }
+    })
+    .catch(err => {
+        alert("Bağlantı hatası oluştu!");
+    });
+}
+
 document.addEventListener('click', (e) => {
-    if (!e.target.closest('.card-menu-popup') && !e.target.closest('.menu-trigger-btn')) {
+    if (!e.target.closest('.card-menu-popup') && !e.target.closest('.menu-trigger-btn') && !e.target.closest('.bin-menu-container')) {
         document.querySelectorAll('.card-menu-popup').forEach(el => el.classList.add('hidden'));
+        const binMenu = document.getElementById('binDropdownMenu');
+        if (binMenu) binMenu.classList.add('hidden');
     }
 });
 
@@ -328,6 +360,284 @@ async function handlePermToggle(relPath, keyName, isChecked, copyBtnId = null) {
     }
 }
 
+async function handleFileMetaToggle(relPath, key, val) {
+    try {
+        const res = await fetch("/api/toggle-permission", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ rel_path: relPath, key: key, val: val })
+        });
+        if (res.ok) {
+            location.reload();
+        } else {
+            alert("Güncellenemedi!");
+        }
+    } catch (err) {
+        alert("Bağlantı hatası!");
+    }
+}
+
+async function handleFileColorChange(relPath, color) {
+    try {
+        const res = await fetch("/api/toggle-permission", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ rel_path: relPath, key: "color", val: color })
+        });
+        if (res.ok) {
+            location.reload();
+        } else {
+            alert("Renk atanamadı!");
+        }
+    } catch (err) {
+        alert("Bağlantı hatası!");
+    }
+}
+
+async function renameFile(relPath, fileExt, inputId) {
+    const inputElement = document.getElementById(inputId);
+    const newBaseName = inputElement.value.trim();
+
+    if (!newBaseName) {
+        alert("Dosya adı boş olamaz!");
+        return;
+    }
+
+    try {
+        const res = await fetch("/api/rename-item", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ rel_path: relPath, new_name: newBaseName })
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+            showToast("Öğe yeniden adlandırıldı.");
+            setTimeout(() => { location.reload(); }, 600);
+        } else {
+            alert(data.message || "Yeniden adlandırılamadı!");
+        }
+    } catch (err) {
+        alert("Bağlantı hatası oluştu!");
+    }
+}
+
+// ==========================================
+// ÇOKLU DOSYA YÜKLEME VE İŞLEMLER PANELİ (Sıralı Kuyruk)
+// ==========================================
+window.activeXHRs = window.activeXHRs || {};
+
+function handleFilesFromInput(input) {
+    if (input.files && input.files.length > 0) {
+        handleFiles(input.files);
+        input.value = ''; 
+    }
+}
+
+function handleFiles(files) {
+    if (files.length > 0) {
+        const panel = document.getElementById('uploads-panel');
+        if (panel) panel.classList.remove('hidden');
+
+        // Dosyaları gerçek bir JavaScript dizisine çeviriyoruz
+        const fileArray = Array.from(files);
+        
+        // Sırayla teker teker yükleyerek %0'da kalma ve çakışma sorunlarını önlüyoruz
+        processUploadQueue(fileArray, 0);
+    }
+}
+
+function processUploadQueue(fileArray, currentIndex) {
+    if (currentIndex >= fileArray.length) {
+        return; 
+    }
+
+    const currentFile = fileArray[currentIndex];
+    uploadSingleFile(currentFile, function() {
+        processUploadQueue(fileArray, currentIndex + 1);
+    });
+}
+
+function uploadSingleFile(file, onCompleteCallback) {
+    const chunkSize = 10 * 1024 * 1024; // 10MB chunk boyutu
+    const totalChunks = Math.ceil(file.size / chunkSize);
+    let currentChunk = 0;
+
+    const container = document.getElementById('uploads-list-container');
+    const fileId = 'upload-' + Math.random().toString(36).substring(2, 9);
+    const currentPath = document.getElementById('current-path') ? document.getElementById('current-path').value : "";
+
+    const itemHtml = `
+        <div class="upload-item" id="${fileId}">
+            <div class="upload-item-info">
+                <span class="upload-filename" title="${file.name}">${file.name}</span>
+                <span class="upload-pct" style="color: #66fcf1; font-weight: bold;">%0</span>
+                <button type="button" class="upload-cancel-btn" onclick="cancelUpload('${fileId}')">Durdur</button>
+            </div>
+            <div class="upload-progress-bg">
+                <div class="upload-progress-fill" id="bar-${fileId}" style="width: 0%;"></div>
+            </div>
+        </div>
+    `;
+    
+    if (container) container.insertAdjacentHTML('beforeend', itemHtml);
+    updateActiveUploadsCount();
+
+    function uploadNextChunk() {
+        if (window.activeXHRs[fileId] && window.activeXHRs[fileId].isCancelled) {
+            onCompleteCallback(); 
+            return;
+        }
+
+        const start = currentChunk * chunkSize;
+        const end = Math.min(start + chunkSize, file.size);
+        const chunk = file.slice(start, end);
+
+        const formData = new FormData();
+        formData.append('video_chunk', chunk);
+        formData.append('filename', file.name);
+        formData.append('chunkIndex', currentChunk);
+        formData.append('totalChunks', totalChunks);
+        formData.append('current_path', currentPath);
+
+        const xhr = new XMLHttpRequest();
+        window.activeXHRs[fileId] = { xhr: xhr, isCancelled: false };
+        xhr.open('POST', '/yukle', true);
+
+        xhr.upload.addEventListener('progress', (e) => {
+            if (e.lengthComputable) {
+                const chunkProgress = e.loaded / e.total;
+                const totalPercent = Math.round(((currentChunk + chunkProgress) / totalChunks) * 100);
+                
+                const bar = document.getElementById(`bar-${fileId}`);
+                const pctSpan = document.querySelector(`#${fileId} .upload-pct`);
+                if (bar) bar.style.width = Math.min(totalPercent, 100) + '%';
+                if (pctSpan) pctSpan.innerText = `%${Math.min(totalPercent, 100)}`;
+            }
+        });
+
+        xhr.addEventListener('load', () => {
+            if (xhr.status === 200) {
+                currentChunk++;
+                if (currentChunk < totalChunks) {
+                    uploadNextChunk();
+                } else {
+                    const pctSpan = document.querySelector(`#${fileId} .upload-pct`);
+                    const cancelBtn = document.querySelector(`#${fileId} .upload-cancel-btn`);
+                    if (pctSpan) {
+                        pctSpan.innerText = "Tamamlandı";
+                        pctSpan.style.color = "#45f3ff";
+                    }
+                    if (cancelBtn) cancelBtn.remove();
+                    
+                    const bar = document.getElementById(`bar-${fileId}`);
+                    if (bar) bar.style.width = '100%';
+
+                    setTimeout(() => {
+                        const el = document.getElementById(fileId);
+                        if (el) el.remove();
+                        updateActiveUploadsCount();
+                    }, 1500);
+
+                    onCompleteCallback(); 
+                }
+            } else {
+                handleUploadError(fileId, "Hata (" + xhr.status + ")");
+                onCompleteCallback(); 
+            }
+        });
+
+        xhr.addEventListener('error', () => {
+            handleUploadError(fileId, "Bağlantı koptu");
+            onCompleteCallback(); 
+        });
+
+        xhr.send(formData);
+    }
+
+    window.activeXHRs[fileId] = { xhr: null, isCancelled: false, startUpload: uploadNextChunk };
+    uploadNextChunk();
+}
+
+function cancelUpload(fileId) {
+    if (window.activeXHRs && window.activeXHRs[fileId]) {
+        window.activeXHRs[fileId].isCancelled = true;
+        if (window.activeXHRs[fileId].xhr) {
+            window.activeXHRs[fileId].xhr.abort();
+        }
+        
+        const el = document.getElementById(fileId);
+        if (el) {
+            const pctSpan = el.querySelector('.upload-pct');
+            const cancelBtn = el.querySelector('.upload-cancel-btn');
+            if (pctSpan) {
+                pctSpan.innerText = "Durduruldu";
+                pctSpan.style.color = "#ff4a4a";
+            }
+            if (cancelBtn) cancelBtn.remove();
+            
+            setTimeout(() => {
+                el.remove();
+                updateActiveUploadsCount();
+            }, 1500);
+        }
+    }
+}
+
+function updateActiveUploadsCount() {
+    const container = document.getElementById('uploads-list-container');
+    const panel = document.getElementById('uploads-panel');
+    const countBadge = document.getElementById('active-uploads-count');
+    
+    const count = container ? container.children.length : 0;
+    if (countBadge) countBadge.innerText = count;
+
+    if (panel) {
+        if (count === 0) {
+            panel.classList.add('hidden');
+            location.reload(); 
+        } else {
+            panel.classList.remove('hidden');
+        }
+    }
+}
+
+function handleUploadError(fileId, msg) {
+    const el = document.getElementById(fileId);
+    if (el) {
+        const pctSpan = el.querySelector('.upload-pct');
+        const cancelBtn = el.querySelector('.upload-cancel-btn');
+        if (pctSpan) {
+            pctSpan.innerText = msg;
+            pctSpan.style.color = "#ff4a4a";
+        }
+        if (cancelBtn) cancelBtn.remove();
+        
+        setTimeout(() => {
+            el.remove();
+            updateActiveUploadsCount();
+        }, 3000);
+    }
+}
+
+// Sürükle bırak olayları (Drop Zone)
+const dropZone = document.getElementById('drop-zone');
+if (dropZone) {
+    ['dragenter', 'dragover'].forEach(eventName => { 
+        dropZone.addEventListener(eventName, (e) => { e.preventDefault(); dropZone.classList.add('dragover'); }, false); 
+    });
+    ['dragleave', 'drop'].forEach(eventName => { 
+        dropZone.addEventListener(eventName, (e) => { e.preventDefault(); dropZone.classList.remove('dragover'); }, false); 
+    });
+
+    dropZone.addEventListener('drop', (e) => { 
+        e.preventDefault();
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            handleFiles(e.dataTransfer.files); 
+        }
+    });
+}
+
 const settingsModal = document.getElementById("settings-modal");
 const openSettingsBtn = document.getElementById("open-settings-btn");
 const closeSettingsBtn = document.getElementById("close-settings-btn");
@@ -398,99 +708,6 @@ if (ppFileInput) {
             alert("Resim yüklenirken hata oluştu!");
         }
     });
-}
-
-const dropZone = document.getElementById('drop-zone');
-if (dropZone) {
-    const fileInput = document.getElementById('file-input');
-    const uploadStatus = document.getElementById('upload-status');
-    const pContainer = document.getElementById('p-container');
-    const pBar = document.getElementById('p-bar');
-    const loadingSpinner = document.getElementById('loading-spinner');
-    const uploadIcon = document.getElementById('upload-icon');
-    const currentPath = document.getElementById('current-path').value;
-
-    ['dragenter', 'dragover'].forEach(eventName => { 
-        dropZone.addEventListener(eventName, (e) => { e.preventDefault(); dropZone.classList.add('dragover'); }, false); 
-    });
-    ['dragleave', 'drop'].forEach(eventName => { 
-        dropZone.addEventListener(eventName, (e) => { e.preventDefault(); dropZone.classList.remove('dragover'); }, false); 
-    });
-
-    dropZone.addEventListener('drop', (e) => { handleFiles(e.dataTransfer.files); });
-    fileInput.addEventListener('change', (e) => { handleFiles(e.target.files); });
-
-    function handleFiles(files) { if (files.length > 0) uploadFile(files[0]); }
-
-    function uploadFile(file) {
-        const chunkSize = 77 * 1024 * 1024;
-        const totalChunks = Math.ceil(file.size / chunkSize);
-        let currentChunk = 0;
-
-        uploadIcon.style.display = 'none';
-        loadingSpinner.style.display = 'block';
-        pContainer.style.display = 'block';
-
-        function uploadNextChunk() {
-            const start = currentChunk * chunkSize;
-            const end = Math.min(start + chunkSize, file.size);
-            const chunk = file.slice(start, end);
-
-            const formData = new FormData();
-            formData.append('video_chunk', chunk);
-            formData.append('filename', file.name);
-            formData.append('chunkIndex', currentChunk);
-            formData.append('totalChunks', totalChunks);
-            formData.append('current_path', currentPath);
-
-            const xhr = new XMLHttpRequest();
-            xhr.open('POST', '/yukle', true);
-
-            xhr.upload.addEventListener('progress', (e) => {
-                if (e.lengthComputable) {
-                    const chunkProgress = e.loaded / e.total;
-                    const totalPercent = Math.round(((currentChunk + chunkProgress) / totalChunks) * 100);
-                    pBar.style.width = totalPercent + '%';
-                    uploadStatus.innerText = `İletiliyor: %${totalPercent}`;
-                    uploadStatus.style.color = '#66fcf1';
-                }
-            });
-
-            xhr.addEventListener('load', () => {
-                if (xhr.status === 200) {
-                    currentChunk++;
-                    if (currentChunk < totalChunks) {
-                        uploadNextChunk();
-                    } else {
-                        uploadStatus.innerText = "Kaydedildi!";
-                        uploadStatus.style.color = '#45f3ff';
-                        setTimeout(() => { location.reload(); }, 800);
-                    }
-                } else {
-                    let errorMsg = "Başarısız";
-                    try {
-                        const res = JSON.parse(xhr.responseText);
-                        if(res.error) errorMsg = res.error;
-                    } catch(e) {}
-
-                    uploadStatus.innerText = errorMsg;
-                    uploadStatus.style.color = '#ff4a4a';
-                    uploadIcon.style.display = 'block';
-                    loadingSpinner.style.display = 'none';
-                }
-            });
-
-            xhr.addEventListener('error', () => {
-                uploadStatus.innerText = "Bağlantı Koptu";
-                uploadStatus.style.color = '#ff4a4a';
-                uploadIcon.style.display = 'block';
-                loadingSpinner.style.display = 'none';
-            });
-
-            xhr.send(formData);
-        }
-        uploadNextChunk();
-    }
 }
 
 const loginCard = document.getElementById('login-card');

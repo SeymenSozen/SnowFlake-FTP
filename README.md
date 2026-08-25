@@ -9,7 +9,7 @@ Project SnowFlake, siberpunk estetiğine ve karlı bir görsel atmosfere sahip, 
 * **🔐 Otomatik Kurulum ve Konfigürasyon (`setup.py`):** 
   * Proje ilk kez klonlandığında veya sıfır bir ortama kurulduğunda `python setup.py` komutuyla tüm dizinleri, çevresel değişkenleri ve şifreleme anahtarlarını otomatik oluşturur.
 * **🛡️ Güvenli Harddisk ve Depo Taraması:** 
-  * İlk kurulumda bağlı olan harddisk veya `tmp` deposundaki tüm mevcut dosyaları/yedekleri tarar ve varsayılan olarak **sadece admin (`luffy`) kullanıcısının görebileceği şekilde kilitli (`public_access: False`)** olarak kaydeder.
+  * İlk kurulumda bağlı olan harddisk veya `tmp` deposundaki tüm mevcut dosyaları/yedekleri tarar ve varsayılan olarak **sadece admin (`admin`) kullanıcısının görebileceği şekilde kilitli (`public_access: False`)** olarak kaydeder.
 * **🔑 PBKDF2 Şifreleme ve Benzersiz Salt:** 
   * Tüm kullanıcı şifreleri (varsayılan: `Helelele!`) rastgele 16-byte salt değerleriyle PBKDF2-HMAC-SHA256 algoritmasıyla hash'lenerek saklanır.
 * **📁 77 MB Parçalı (Chunked) Yüksek Boyutlu Dosya Yükleme:** 

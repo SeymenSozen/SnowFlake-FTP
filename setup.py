@@ -36,7 +36,7 @@ SCHEMAS_DIR = os.path.abspath("schemas")
 FTP_DIR = os.path.abspath(os.getenv("FTP_DIR", "tmp"))
 
 USERS_FILE = os.path.join(DATABASE_DIR, "users.json")
-PERMISSIONS_FILE = os.path.join(DATABASE_DIR, "perms.json")
+FILES_FILE = os.path.join(DATABASE_DIR, "files.json")  # perms.json yerine app.py ile uyumlu files.json yapıldı
 
 def log_info(msg): print(f"{Fore.CYAN}[SETUP INFO]{Style.RESET_ALL} {msg}")
 def log_success(msg): print(f"{Fore.GREEN}[SETUP SUCCESS]{Style.RESET_ALL} {msg}")
@@ -56,7 +56,6 @@ def init_directories():
             os.makedirs(d, exist_ok=True)
             log_info(f"Dizin oluşturuldu: {d}")
 
-    # default.yml yoksa schemas içine otomatik oluştur
     default_yml_path = os.path.join(SCHEMAS_DIR, "default.yml")
     if not os.path.exists(default_yml_path):
         default_yaml_content = (
@@ -218,13 +217,13 @@ def setup_users():
         log_success(f"Kullanıcı veritabanı kaydedildi -> {USERS_FILE}")
 
 def setup_permissions_scan():
-    perms = {}
-    if os.path.exists(PERMISSIONS_FILE):
+    files_meta = {}
+    if os.path.exists(FILES_FILE):
         try:
-            with open(PERMISSIONS_FILE, "r", encoding="utf-8") as f:
-                perms = json.load(f)
+            with open(FILES_FILE, "r", encoding="utf-8") as f:
+                files_meta = json.load(f)
         except Exception:
-            perms = {}
+            files_meta = {}
 
     log_info(f"Depo klasörü taranıyor: {FTP_DIR}")
     scanned_count = 0
@@ -236,21 +235,24 @@ def setup_permissions_scan():
             full_path = os.path.join(root, item)
             rel_path = os.path.relpath(full_path, FTP_DIR)
 
-            if rel_path not in perms:
-                perms[rel_path] = {
+            if rel_path not in files_meta:
+                files_meta[rel_path] = {
                     "owner": "admin",
                     "public_access": False,
-                    "public": False
+                    "public": False,
+                    "is_edited": False,
+                    "is_priority": False,
+                    "color": ""
                 }
                 scanned_count += 1
 
-    with open(PERMISSIONS_FILE, "w", encoding="utf-8") as f:
-        json.dump(perms, f, indent=2, ensure_ascii=False)
+    with open(FILES_FILE, "w", encoding="utf-8") as f:
+        json.dump(files_meta, f, indent=2, ensure_ascii=False)
 
     if scanned_count > 0:
-        log_success(f"{scanned_count} adet dosya/klasör taranıp 'admin'e kilitli olarak kaydedildi -> {PERMISSIONS_FILE}")
+        log_success(f"{scanned_count} adet dosya/klasör taranıp meta verileriyle birlikte kaydedildi -> {FILES_FILE}")
     else:
-        log_info(f"Tüm izinler güncel -> {PERMISSIONS_FILE}")
+        log_info(f"Tüm dosya meta verileri güncel -> {FILES_FILE}")
 
 if __name__ == "__main__":
     print(f"\n{Fore.MAGENTA}==========================================")

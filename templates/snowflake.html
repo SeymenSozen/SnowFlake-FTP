@@ -51,7 +51,7 @@
             <button class="icon-btn" id="open-settings-btn" title="Ayarlar">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#66fcf1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="12" cy="12" r="3"></circle>
-                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l-.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
                 </svg>
             </button>
         </div>
@@ -82,10 +82,10 @@
 
     <div class="grid-container" style="z-index: 10;">
 
-        <div class="box upload-box item-card" id="drop-zone">
+        <div class="box upload-box item-card" id="drop-zone" onclick="document.getElementById('file-input').click()">
             <button class="menu-trigger-btn" onclick="toggleCardMenu(event, 'upload-zone')">⋮</button>
 
-            <div class="card-menu-popup hidden" id="menu-upload-zone" style="width: 210px;">
+            <div class="card-menu-popup hidden" id="menu-upload-zone" style="width: 210px;" onclick="event.stopPropagation()">
                 <div class="menu-header-row">
                     <div class="menu-title">YENİ KLASÖR OLUŞTUR</div>
                 </div>
@@ -103,12 +103,13 @@
                 <button type="button" class="action-btn" id="create-folder-btn" style="width: 100%; font-size: 11px; padding: 6px;">Oluştur</button>
             </div>
 
-            <div class="card-inner-link" onclick="document.getElementById('file-input').click()">
+            <div class="card-inner-link">
                 <div class="spinner" id="loading-spinner"></div>
                 <div class="plus-sign" id="upload-icon">+</div>
                 <div class="upload-text" id="upload-status">Sürükle veya Seç</div>
                 <div class="progress-container" id="p-container"><div class="progress-bar" id="p-bar"></div></div>
-                <input type="file" id="file-input" style="display: none;">
+                <!-- Çoklu yükleme ve input tetikleme fonksiyonu bağlandı -->
+                <input type="file" id="file-input" multiple style="display: none;" onchange="handleFilesFromInput(this)">
             </div>
         </div>
 
@@ -165,12 +166,19 @@
         {% endfor %}
 
         {% for dosya in dosyalar %}
+        {% set custom_color = dosya.color if dosya.color and dosya.color != "" else user_info.get('color', '#66fcf1') %}
+        <!-- Dosya adını ve uzantısını ayırıyoruz -->
+        {% set name_parts = dosya.name.rsplit('.', 1) %}
+        {% set file_base = name_parts[0] %}
+        {% set file_ext = '.' + name_parts[1] if name_parts|length > 1 else '' %}
+
         <div class="box video-box item-card" 
+             style="border-color: {{ custom_color }};"
              draggable="true" 
              ondragstart="handleDragStart(event, '{{ dosya.rel_path }}')">
-            <button class="menu-trigger-btn" onclick="toggleCardMenu(event, '{{ dosya.rel_path }}')">⋮</button>
+            <button class="menu-trigger-btn" onclick="toggleCardMenu(event, '{{ dosya.rel_path }}')" style="color: {{ custom_color }};">⋮</button>
             
-            <div class="card-menu-popup hidden" id="menu-{{ dosya.rel_path }}" style="width: 210px;">
+            <div class="card-menu-popup hidden" id="menu-{{ dosya.rel_path }}" style="width: 230px;">
                 <div class="menu-header-row">
                     <div class="menu-title">DOSYA AYARLARI</div>
                     {% if not current_path.startswith('bin') %}
@@ -183,7 +191,16 @@
                     {% endif %}
                 </div>
                 
-                <div class="menu-option" style="margin-top: 12px; margin-bottom: 10px;">
+                <!-- Yeniden Adlandırma Alanı -->
+                <div style="margin-top: 8px; margin-bottom: 8px;">
+                    <div style="font-size: 10px; color: #8a8d91; margin-bottom: 4px; font-weight: bold;">YENİDEN ADLANDIR</div>
+                    <div style="display: flex; align-items: center; background: rgba(11, 12, 16, 0.8); border: 1px solid rgba(102, 252, 241, 0.3); border-radius: 6px; padding: 5px 8px;">
+                        <input type="text" id="rename-input-{{ loop.index }}" value="{{ file_base }}" style="background: transparent; border: none; color: #fff; font-size: 11px; outline: none; width: 100%;" onkeydown="if(event.key === 'Enter') renameFile('{{ dosya.rel_path }}', '{{ file_ext }}', 'rename-input-{{ loop.index }}')">
+                        <span style="font-size: 11px; color: {{ custom_color }}; white-space: nowrap; margin-left: 4px; font-weight: bold;">{{ file_ext }}</span>
+                    </div>
+                </div>
+
+                <div class="menu-option" style="margin-top: 6px; margin-bottom: 8px;">
                     <span class="static-label">Kullanıcı Erişimine Aç</span>
                     <label class="switch">
                         <input type="checkbox" {% if dosya.public_access %}checked{% endif %} 
@@ -192,7 +209,7 @@
                     </label>
                 </div>
 
-                <div class="menu-option">
+                <div class="menu-option" style="margin-bottom: 8px;">
                     <span class="static-label">Paylaşıma Aç</span>
                     
                     <div class="share-actions-group">
@@ -214,7 +231,33 @@
                     </div>
                 </div>
 
-                <div id="share-error-{{ dosya.rel_path }}" class="folder-error-text hidden" style="margin-top: 8px; margin-bottom: 0;">
+                <!-- 1. Anahtar: Editlendi / Editlenicek -->
+                <div class="menu-option" style="margin-bottom: 8px;">
+                    <span class="static-label">Düzenleme Durumu</span>
+                    <label class="switch" title="Editlendi / Editlenicek">
+                        <input type="checkbox" {% if dosya.is_edited %}checked{% endif %} 
+                               onchange="handleFileMetaToggle('{{ dosya.rel_path }}', 'is_edited', this.checked)">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <!-- 2. Anahtar: Öncelikli / Öncelikli Değil -->
+                <div class="menu-option" style="margin-bottom: 8px;">
+                    <span class="static-label">Öncelik Durumu</span>
+                    <label class="switch" title="Öncelikli / Öncelikli Değil">
+                        <input type="checkbox" {% if dosya.is_priority %}checked{% endif %} 
+                               onchange="handleFileMetaToggle('{{ dosya.rel_path }}', 'is_priority', this.checked)">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <!-- Renk Seçici -->
+                <div class="menu-option" style="align-items: center; border-top: 1px solid rgba(102, 252, 241, 0.15); padding-top: 6px;">
+                    <span class="static-label">Özel Renk</span>
+                    <input type="color" value="{{ custom_color }}" onchange="handleFileColorChange('{{ dosya.rel_path }}', this.value)" style="background: none; border: none; width: 24px; height: 24px; cursor: pointer;">
+                </div>
+
+                <div id="share-error-{{ dosya.rel_path }}" class="folder-error-text hidden" style="margin-top: 6px; margin-bottom: 0;">
                     Paylaşıma açmadan linki kopyalayamazsın!
                 </div>
             </div>
@@ -223,31 +266,72 @@
             <div class="card-inner-link" onclick="triggerBinLockEffect(this)" style="cursor: pointer;">
                 <div class="video-icon">🎞️</div>
                 <div class="video-name">{{ dosya.name }}</div>
-                <div class="video-size">{{ dosya.size }}</div>
+                <!-- Etiketler (Dosya Boyutunun Üstünde) -->
+                <div style="font-size: 10px; font-weight: bold; margin-top: 4px;">
+                    <span style="color: {% if dosya.is_edited %}#facc15{% else %}#66fcf1{% endif %};">
+                        {% if dosya.is_edited %}Editlendi{% else %}Editlenicek{% endif %}
+                    </span>
+                    <span style="margin: 0 3px; color: #555;">|</span>
+                    <span style="color: {% if dosya.is_priority %}#ff4a4a{% else %}#66fcf1{% endif %};">
+                        {% if dosya.is_priority %}Öncelikli{% else %}Öncelikli Değil{% endif %}
+                    </span>
+                </div>
+                <div class="video-size" style="color: {{ custom_color }};">{{ dosya.size }}</div>
             </div>
             {% else %}
             <a href="/indir?path={{ dosya.rel_path }}" class="card-inner-link" onclick="if(window.isDragging) { event.preventDefault(); }">
                 <div class="video-icon">🎞️</div>
                 <div class="video-name">{{ dosya.name }}</div>
-                <div class="video-size">{{ dosya.size }}</div>
+                <!-- Etiketler (Dosya Boyutunun Üstünde) -->
+                <div style="font-size: 10px; font-weight: bold; margin-top: 4px;">
+                    <span style="color: {% if dosya.is_edited %}#facc15{% else %}#66fcf1{% endif %};">
+                        {% if dosya.is_edited %}Editlendi{% else %}Editlenicek{% endif %}
+                    </span>
+                    <span style="margin: 0 3px; color: #555;">|</span>
+                    <span style="color: {% if dosya.is_priority %}#ff4a4a{% else %}#66fcf1{% endif %};">
+                        {% if dosya.is_priority %}Öncelikli{% else %}Öncelikli Değil{% endif %}
+                    </span>
+                </div>
+                <div class="video-size" style="color: {{ custom_color }};">{{ dosya.size }}</div>
             </a>
             {% endif %}
         </div>
         {% endfor %}
 
         {% if current_path == "" and session.get('role') == 'admin' %}
-        <div class="box video-box" 
-             style="border-color: rgba(255, 74, 74, 0.4); background-color: rgba(255, 74, 74, 0.03); cursor: pointer;"
+        <div class="box video-box bin-box item-card" 
+             style="border-color: rgba(255, 74, 74, 0.4); background-color: rgba(255, 74, 74, 0.03); position: relative;"
              ondragover="handleDragOver(event)"
              ondrop="handleDropToBin(event)">
-            <a href="/?path=bin" class="card-inner-link" onclick="if(window.isDragging) { event.preventDefault(); }">
+            
+            <div class="bin-menu-container" style="position: absolute; top: 10px; right: 10px; z-index: 5;">
+                <button type="button" class="menu-trigger-btn" onclick="toggleBinMenu(event)" style="background: transparent; border: none; color: #ff4a4a; font-size: 18px; cursor: pointer; padding: 2px 6px;">⋮</button>
+                
+                <div id="binDropdownMenu" class="card-menu-popup hidden" style="position: absolute; right: 0; top: 25px; min-width: 130px; background: rgba(20, 20, 20, 0.95); border: 1px solid rgba(255, 74, 74, 0.3); border-radius: 8px; padding: 6px; box-shadow: 0 8px 16px rgba(0,0,0,0.5);">
+                    <button type="button" onclick="emptyBin()" style="background: transparent; border: none; color: #ff4a4a; width: 100%; text-align: left; padding: 8px 10px; font-size: 12px; cursor: pointer; border-radius: 4px; display: flex; align-items: center; gap: 6px;">
+                        🗑️ Çöpü Boşalt
+                    </button>
+                </div>
+            </div>
+
+            <a href="/?path=bin" class="card-inner-link" onclick="if(window.isDragging) { event.preventDefault(); }" style="text-decoration: none;">
                 <div class="video-icon">🗑️</div>
                 <div class="video-name" style="color: #ff4a4a; font-weight: bold;">Geri Dönüştür</div>
-                <div class="video-size">Çöp Kutusu</div>
+                <div class="video-size" style="color: #aaa; font-size: 11px; margin-top: 4px;">{{ bin_info.size }} ({{ bin_info.count }} dosya)</div>
             </a>
         </div>
         {% endif %}
 
+    </div>
+
+    <!-- Sağ Alt İşlemler / Yükleme Paneli -->
+    <div id="uploads-panel" class="uploads-panel hidden">
+        <div class="uploads-header">
+            <span>İŞLEMLER (YÜKLEMELER)</span>
+            <span id="active-uploads-count" style="background: rgba(102, 252, 241, 0.2); padding: 1px 6px; border-radius: 10px; font-size: 10px;">0</span>
+        </div>
+        <div class="uploads-body" id="uploads-list-container">
+        </div>
     </div>
 
     <div id="settings-modal" class="modal-backdrop hidden">
@@ -259,15 +343,25 @@
             
             <div class="modal-section">
                 <label>PROFİL FOTOĞRAFI GÜNCELLE</label>
-                <div class="avatar-upload-wrapper">
+                <div class="avatar-upload-wrapper" style="display: flex; align-items: center; gap: 15px;">
                     <img src="{{ url_for('static', filename=user_avatar) }}" 
                          onerror="this.onerror=null; this.src='/static/img/default.png';" 
                          class="preview-avatar" id="modal-avatar-preview">
-                    <input type="file" id="pp-file-input" accept="image/png, image/jpeg" style="display: none;">
                     
-                    <div class="pp-btn-group">
-                        <button type="button" class="action-btn" onclick="document.getElementById('pp-file-input').click()">Resim Seç</button>
-                        <a href="/logout" class="modal-logout-btn">Çıkış Yap</a>
+                    <div class="pp-btn-group" style="display: flex; gap: 8px; align-items: center; justify-content: space-between; width: 100%;">
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <button type="button" class="action-btn" onclick="document.getElementById('pp-file-input').click()" style="padding: 8px 12px;">Resim Seç</button>
+                            
+                            <div style="position: relative; display: inline-block;">
+                                <button type="button" class="action-btn" style="display: flex; align-items: center; gap: 5px; padding: 8px 12px; pointer-events: none;">
+                                    <span style="display: inline-block; width: 12px; height: 12px; background-color: {{ user_info.get('color', '#66fcf1') }}; border-radius: 2px; border: 1px solid rgba(255,255,255,0.4);" id="btn-color-preview"></span>
+                                    Renk Seç
+                                </button>
+                                <input type="color" id="user-color-input" value="{{ user_info.get('color', '#66fcf1') }}" onchange="updateUserColor(this.value)" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;">
+                            </div>
+                        </div>
+
+                        <a href="/logout" class="modal-logout-btn" style="padding: 7px 12px;">Çıkış Yap</a>
                     </div>
                 </div>
             </div>
@@ -291,6 +385,108 @@
 
     {% endif %}
 
+    <script>
+    async function updateUserColor(color) {
+        document.getElementById('btn-color-preview').style.backgroundColor = color;
+        const modalMsg = document.getElementById("modal-msg");
+        modalMsg.style.display = "none";
+
+        try {
+            const res = await fetch("/api/update-color", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ color })
+            });
+            const data = await res.json();
+
+            if (res.ok) {
+                modalMsg.style.color = "#66fcf1";
+                modalMsg.textContent = "Renk güncellendi!";
+                modalMsg.style.display = "block";
+                setTimeout(() => { location.reload(); }, 800);
+            } else {
+                modalMsg.style.color = "#ff4a4a";
+                modalMsg.textContent = data.message || "Renk kaydedilemedi!";
+                modalMsg.style.display = "block";
+            }
+        } catch (e) {
+            modalMsg.style.color = "#ff4a4a";
+            modalMsg.textContent = "Bağlantı hatası!";
+            modalMsg.style.display = "block";
+        }
+    }
+
+    async function handleFileMetaToggle(relPath, key, val) {
+        try {
+            const res = await fetch("/api/toggle-permission", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ rel_path: relPath, key: key, val: val })
+            });
+            if (res.ok) {
+                location.reload();
+            } else {
+                alert("Güncellenemedi!");
+            }
+        } catch (err) {
+            alert("Bağlantı hatası!");
+        }
+    }
+
+    async function handleFileColorChange(relPath, color) {
+        try {
+            const res = await fetch("/api/toggle-permission", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ rel_path: relPath, key: "color", val: color })
+            });
+            if (res.ok) {
+                location.reload();
+            } else {
+                alert("Renk atanamadı!");
+            }
+        } catch (err) {
+            alert("Bağlantı hatası!");
+        }
+    }
+
+    // Dosyayı yeniden adlandırma fonksiyonu
+    async function renameFile(relPath, fileExt, inputId) {
+        const inputElement = document.getElementById(inputId);
+        const newBaseName = inputElement.value.trim();
+
+        if (!newBaseName) {
+            alert("Dosya adı boş olamaz!");
+            return;
+        }
+
+        try {
+            const res = await fetch("/api/rename-item", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ rel_path: relPath, new_name: newBaseName })
+            });
+            const data = await res.json();
+
+            if (res.ok) {
+                showToast("Dosya yeniden adlandırıldı.");
+                setTimeout(() => { location.reload(); }, 600);
+            } else {
+                alert(data.message || "Yeniden adlandırılamadı!");
+            }
+        } catch (err) {
+            alert("Bağlantı hatası oluştu!");
+        }
+    }
+
+    // Input üzerinden dosya seçildiğinde tetiklenecek fonksiyon
+    function handleFilesFromInput(input) {
+        if (input.files && input.files.length > 0) {
+            handleFiles(input.files);
+            input.value = ''; // Aynı dosyanın tekrar seçilebilmesi için inputu sıfırla
+        }
+    }
+    </script>
     <script src="{{ url_for('static', filename='snowflake.js') }}"></script>
 </body>
 </html>
