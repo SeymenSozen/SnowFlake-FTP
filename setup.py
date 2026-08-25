@@ -18,25 +18,24 @@ except ImportError:
 
 try:
     from dotenv import load_dotenv
-    load_dotenv()
+    load_dotenv(override=True)
 except ImportError:
-    pass
-
-try:
-    from cryptography.hazmat.primitives.asymmetric import rsa
-    from cryptography.hazmat.primitives import serialization
-    HAS_CRYPTOGRAPHY = True
-except ImportError:
-    HAS_CRYPTOGRAPHY = False
+    def load_dotenv(**kwargs): pass
 
 DATABASE_DIR = os.path.abspath("database")
 KEYS_DIR = os.path.abspath("keys")
 PP_DIR = os.path.abspath("static/img/pp")
 SCHEMAS_DIR = os.path.abspath("schemas")
+
+# .env okunduktan sonra FTP_DIR'i doğru alması için env kontrolü
+env_path = os.path.abspath(".env")
+if os.path.exists(env_path):
+    load_dotenv(dotenv_path=env_path, override=True)
+
 FTP_DIR = os.path.abspath(os.getenv("FTP_DIR", "tmp"))
 
 USERS_FILE = os.path.join(DATABASE_DIR, "users.json")
-FILES_FILE = os.path.join(DATABASE_DIR, "files.json")  # perms.json yerine app.py ile uyumlu files.json yapıldı
+FILES_FILE = os.path.join(DATABASE_DIR, "files.json")
 
 def log_info(msg): print(f"{Fore.CYAN}[SETUP INFO]{Style.RESET_ALL} {msg}")
 def log_success(msg): print(f"{Fore.GREEN}[SETUP SUCCESS]{Style.RESET_ALL} {msg}")
@@ -50,6 +49,35 @@ def hash_password(password: str, salt: bytes = None) -> str:
     return "HASH_" + base64.b64encode(salt + key).decode('utf-8')
 
 def init_directories():
+    global FTP_DIR
+    if os.path.exists(env_path):
+        load_dotenv(dotenv_path=env_path, override=True)
+        FTP_DIR = os.path.abspath(os.getenv("FTP_DIR", "tmp"))
+
+    has_setup_flag = False
+    if os.path.exists(env_path):
+        with open(env_path, "r", encoding="utf-8") as f:
+            if "SETUP=True" in f.read():
+                has_setup_flag = True
+
+    if not has_setup_flag:
+        if os.path.exists(env_path):
+            with open(env_path, "a", encoding="utf-8") as f:
+                f.write("\nSETUP=True\n")
+            log_success(".env dosyasına SETUP=True eklendi.")
+        else:
+            default_env = (
+                "# Setup ( Buraya dokunma )\n"
+                "SETUP=True\n\n"
+                "PORT=33337\n"
+                "FTP_DIR=/media/snowflake\n"
+                "SECRET_KEY_PATH=keys/secret.key\n"
+                "PUBLIC_IP=\n"
+            )
+            with open(env_path, "w", encoding="utf-8") as f:
+                f.write(default_env)
+            log_success(".env dosyası oluşturuldu ve SETUP=True eklendi.")
+
     directories = [DATABASE_DIR, KEYS_DIR, PP_DIR, SCHEMAS_DIR, FTP_DIR]
     for d in directories:
         if not os.path.exists(d):
@@ -70,26 +98,6 @@ def init_directories():
         with open(default_yml_path, "w", encoding="utf-8") as f:
             f.write(default_yaml_content)
         log_success("Varsayılan şema oluşturuldu -> schemas/default.yml")
-
-    env_path = os.path.abspath(".env")
-    has_setup_flag = False
-    if os.path.exists(env_path):
-        with open(env_path, "r", encoding="utf-8") as f:
-            if "SETUP=True" in f.read():
-                has_setup_flag = True
-
-    if not has_setup_flag:
-        default_env = (
-            "# Setup ( Buraya dokunma )\n"
-            "SETUP=True\n\n"
-            "PORT=33337\n"
-            "FTP_DIR=tmp\n"
-            "SECRET_KEY_PATH=keys/secret.key\n"
-            "PUBLIC_IP=\n"
-        )
-        with open(env_path, "w", encoding="utf-8") as f:
-            f.write(default_env)
-        log_success(".env dosyasına '# Setup ( Buraya dokunma )' ve SETUP=True eklendi.")
 
 def setup_keys():
     os.makedirs(KEYS_DIR, exist_ok=True)
